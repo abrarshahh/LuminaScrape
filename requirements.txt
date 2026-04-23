@@ -1,0 +1,14 @@
+fastapi[standard]
+uvicorn
+playwright
+playwright-stealth
+langgraph
+langchain
+litellm
+pydantic
+python-dotenv
+pyyaml
+crawl4ai
+httpx
+pytest
+black

@@ -1,0 +1,26 @@
+# LuminaScrape Model Configuration
+# Use LiteLLM prefixes:
+# - Local: ollama/llama3.2
+# - OpenAI: gpt-4o-mini
+# - Anthropic: claude-3-5-sonnet-20240620
+# - Google: gemini/gemini-1.5-pro
+
+agents:
+  pilot:
+    model: "ollama/llama3.2-vision"
+    temperature: 0.0
+    description: "The Navigation Agent responsible for browser interaction."
+  
+  extractor:
+    model: "ollama/phi3.5"
+    temperature: 0.0
+    description: "The Data Extraction Agent responsible for parsing MD to JSON."
+  
+  overseer:
+    model: "ollama/llama3.1"
+    temperature: 0.2
+    description: "The Quality Control Agent responsible for validation."
+
+global_settings:
+  fallback_model: "gpt-4o-mini" # Used if local model fails
+  enable_fallbacks: false

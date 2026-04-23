@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "luminascrape"
+version = "0.1.0"
+description = "Autonomous, multimodal browser agent for web intelligence."
+authors = ["Antigravity <ai@deepmind.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.110.0"
+uvicorn = "^0.27.0"
+playwright = "^1.42.0"
+playwright-stealth = "^1.0.6"
+langgraph = "^0.0.30"
+litellm = "^1.31.0"
+pydantic = "^2.6.0"
+python-dotenv = "^1.0.1"
+pyyaml = "^6.0.1"
+crawl4ai = "^0.2.7"
+httpx = "^0.27.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+black = "^24.2.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
