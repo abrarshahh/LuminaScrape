@@ -2,54 +2,67 @@ import os
 import yaml
 import litellm
 from dotenv import load_dotenv
+from core.logger import get_logger
 
 load_dotenv()
+logger = get_logger(__name__)
 
 class LLMProvider:
-    def __init__(self, agent_name=None):
+    def __init__(self, agent_role: str):
+        self.role = agent_role
         self.config = self._load_config()
-        self.agent_name = agent_name
-        self.model_info = self._get_model_info(agent_name)
-        self.model_name = self.model_info.get("model", "gpt-4o-mini")
-        self.temperature = self.model_info.get("temperature", 0.0)
+        self.model_name = self.config['model']
+        self.temperature = self.config.get('temperature', 0.0)
+        logger.debug(f"Initialized LLMProvider for role: {agent_role} using model: {self.model_name}")
 
     def _load_config(self):
         config_path = os.path.join(os.path.dirname(__file__), "..", "config", "models.yaml")
         try:
-            with open(config_path, "r") as f:
-                return yaml.safe_load(f)
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
+                return config['agents'][self.role]
         except Exception as e:
-            print(f"Error loading models.yaml: {e}")
-            return {"agents": {}}
+            logger.error(f"Failed to load LLM configuration for {self.role}: {e}")
+            # Fallback to a safe default if config fails
+            return {"model": os.getenv("DEFAULT_MODEL", "gpt-4o-mini"), "temperature": 0.0}
 
-    def _get_model_info(self, agent_name):
-        if not agent_name:
-            return {"model": os.getenv("DEFAULT_MODEL", "gpt-4o-mini")}
-        return self.config.get("agents", {}).get(agent_name, {})
-
-    def call(self, messages, tools=None, response_format=None):
+    def call(self, messages, response_format=None):
         """
-        Generic wrapper for LLM calls using LiteLLM.
+        Main entry point for LLM calls. Handles retries and logging.
         """
-        kwargs = {
-            "model": self.model_name,
-            "messages": messages,
-            "temperature": self.temperature,
-        }
-        
-        if tools:
-            kwargs["tools"] = tools
-            
-        if response_format:
-            kwargs["response_format"] = response_format
-            
+        logger.info(f"Calling LLM ({self.model_name}) for role: {self.role}")
         try:
-            response = litellm.completion(**kwargs)
-            return response
-        except Exception as e:
-            print(f"Error calling LLM ({self.model_name}): {e}")
-            return None
+            # LiteLLM handles multiple providers (Ollama, OpenAI, Anthropic, etc.)
+            kwargs = {
+                "model": self.model_name,
+                "messages": messages,
+                "temperature": self.temperature,
+            }
+            
+            if response_format:
+                kwargs["response_format"] = response_format
 
-# Usage:
-# pilot_llm = LLMProvider("pilot")
-# response = pilot_llm.call([{"role": "user", "content": "Analyze screenshot"}])
+            logger.debug(f"LLM Request Payload: {messages}")
+            
+            response = litellm.completion(**kwargs)
+            
+            # Log token usage if available
+            usage = getattr(response, 'usage', None)
+            if usage:
+                logger.debug(f"LLM Usage: Prompt={usage.prompt_tokens}, Completion={usage.completion_tokens}, Total={usage.total_tokens}")
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"LLM Call failed for {self.role} ({self.model_name}): {e}")
+            
+            # Fallback logic if enabled
+            if os.getenv("ENABLE_FALLBACKS") == "true":
+                fallback_model = os.getenv("FALLBACK_MODEL", "gpt-4o-mini")
+                logger.warning(f"Attempting fallback to {fallback_model}...")
+                try:
+                    return litellm.completion(model=fallback_model, messages=messages)
+                except Exception as fe:
+                    logger.error(f"Fallback also failed: {fe}")
+            
+            return None

@@ -27,3 +27,6 @@ class AgentState(TypedDict):
     
     # Predefined extraction schema (optional)
     schema: Optional[Dict[str, Any]]
+
+    # Tracking Task ID for logging
+    task_id: Optional[str]

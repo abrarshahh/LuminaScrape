@@ -1,49 +1,24 @@
 from playwright.async_api import Page
-from typing import Dict
+from core.logger import get_logger
 
-async def clean_dom(page: Page) -> Dict:
+logger = get_logger(__name__)
+
+async def clean_dom(page: Page):
     """
-    Removes non-essential elements from the DOM to reduce noise and token usage.
-    Strips scripts, styles, iframes, ads, and hidden elements.
-    
-    Args:
-        page: The Playwright Page object.
-        
-    Returns:
-        Dict: Status and summary of elements removed.
+    Removes non-essential elements from the DOM to reduce noise and LLM token usage.
     """
+    logger.info("Starting DOM cleanup to reduce noise...")
     try:
-        # JavaScript to clean the DOM
-        stats = await page.evaluate("""
-            () => {
-                const selectors = [
-                    'script', 'style', 'iframe', 'noscript', 'header', 'footer', 'nav', 
-                    '[role="banner"]', '[role="contentinfo"]', '.ads', '.advertisement', 
-                    '#cookie-banner', '.cookie-consent'
-                ];
-                
-                let count = 0;
-                selectors.forEach(selector => {
-                    const elements = document.querySelectorAll(selector);
-                    count += elements.length;
-                    elements.forEach(el => el.remove());
-                });
-                
-                // Also remove hidden elements
-                const allElements = document.querySelectorAll('*');
-                allElements.forEach(el => {
-                    const style = window.getComputedStyle(el);
-                    if (style.display === 'none' || style.visibility === 'hidden') {
-                        el.remove();
-                        count++;
-                    }
-                });
-                
-                return { elements_removed: count };
-            }
-        """)
+        # Elements to remove
+        selectors = [
+            "script", "style", "iframe", "noscript", "svg", "path", 
+            "footer", "nav", "header", ".ads", ".sidebar", "#sidebar"
+        ]
         
-        return {"status": "success", "stats": stats}
+        for selector in selectors:
+            logger.debug(f"Removing elements matching: {selector}")
+            await page.evaluate(f'document.querySelectorAll("{selector}").forEach(el => el.remove())')
         
+        logger.info("DOM cleanup completed successfully.")
     except Exception as e:
-        return {"status": "failed", "reason": str(e)}
+        logger.error(f"Error during DOM cleanup: {e}")

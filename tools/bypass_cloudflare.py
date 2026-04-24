@@ -1,46 +1,22 @@
-import asyncio
 from playwright.async_api import Page
-from typing import Dict
+from core.logger import get_logger
 
-async def bypass_cloudflare(page: Page, timeout: int = 30000) -> Dict:
+logger = get_logger(__name__)
+
+async def bypass_cloudflare(page: Page):
     """
-    Attempts to bypass Cloudflare 'Waiting' or 'Verify' pages.
-    Detects the presence of Cloudflare challenges and waits for them to resolve 
-    or attempts to interact with the verification checkbox.
-    
-    Args:
-        page: The Playwright Page object.
-        timeout: Maximum time to wait for the bypass.
-        
-    Returns:
-        Dict: Status of the bypass attempt.
+    Attempts to bypass Cloudflare waiting rooms and challenges.
     """
+    logger.info("Checking for Cloudflare protection...")
     try:
-        # 1. Detect Cloudflare
+        # Check for common Cloudflare strings
         content = await page.content()
-        if "cf-challenge" not in content and "Checking your browser" not in content:
-            return {"status": "success", "message": "No Cloudflare challenge detected"}
-
-        # 2. Wait for challenge to resolve automatically (many do with stealth)
-        try:
-            # Wait for the challenge div to disappear or the page to redirect
-            await page.wait_for_selector(".cf-challenge", state="hidden", timeout=timeout)
-            return {"status": "success", "message": "Cloudflare challenge resolved automatically"}
-        except:
-            pass
-
-        # 3. Try to click the "Verify you are human" checkbox if visible
-        # This is a common pattern for Turnstile
-        try:
-            checkbox = page.locator("iframe[src*='challenges.cloudflare.com']").content_frame.locator("#challenge-stage")
-            if await checkbox.count() > 0:
-                await checkbox.click()
-                await asyncio.sleep(5) # Wait for redirect
-                return {"status": "success", "message": "Cloudflare checkbox clicked"}
-        except:
-            pass
-
-        return {"status": "failed", "reason": "Cloudflare bypass timed out or failed"}
-        
+        if "Checking your browser before accessing" in content or "cf-challenge" in content:
+            logger.warning("Cloudflare challenge detected. Waiting for resolution...")
+            # Wait for the challenge to pass or for a specific element to disappear
+            await page.wait_for_load_state("networkidle", timeout=30000)
+            logger.info("Cloudflare challenge cleared.")
+        else:
+            logger.debug("No obvious Cloudflare challenge found.")
     except Exception as e:
-        return {"status": "failed", "reason": str(e)}
+        logger.error(f"Error during Cloudflare bypass: {e}")

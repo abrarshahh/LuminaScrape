@@ -3,6 +3,9 @@ import time
 import os
 import psutil
 import socket
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 class OllamaManager:
     def __init__(self, host="127.0.0.1", port=11434):
@@ -33,12 +36,11 @@ class OllamaManager:
     def start(self):
         """Starts the Ollama server if it's not actually responding."""
         if self.is_api_alive():
-            print(f"[Ollama] API is already alive on {self.host}:{self.port}")
+            logger.info(f"Ollama API is already alive on {self.host}:{self.port}")
             return True
 
-        print("[Ollama] API not responding. Starting Ollama service...")
+        logger.info("Ollama API not responding. Starting Ollama service...")
         try:
-            # We use 'ollama serve' to ensure the API starts
             self.process = subprocess.Popen(
                 ["ollama", "serve"],
                 stdout=subprocess.DEVNULL,
@@ -50,25 +52,25 @@ class OllamaManager:
             for i in range(15):
                 time.sleep(1)
                 if self.is_api_alive():
-                    print(f"[Ollama] Service started and responding after {i+1}s.")
+                    logger.info(f"Ollama service started and responding after {i+1}s.")
                     return True
-                print(f"[Ollama] Waiting for API... ({i+1}/15)")
+                logger.debug(f"Waiting for Ollama API... ({i+1}/15)")
             
-            print("[Ollama] Warning: Service started but API is still not responding.")
+            logger.error("Ollama service started but API is still not responding after 15s.")
             return False
         except Exception as e:
-            print(f"[Ollama] Failed to start: {e}")
+            logger.error(f"Failed to start Ollama: {e}")
             return False
 
     def stop(self):
         """Stops the Ollama server if we started it."""
         if self.process:
-            print("[Ollama] Shutting down started Ollama service...")
+            logger.info("Shutting down started Ollama service...")
             try:
                 parent = psutil.Process(self.process.pid)
                 for child in parent.children(recursive=True):
                     child.kill()
                 parent.kill()
-                print("[Ollama] Service stopped.")
+                logger.info("Ollama service stopped.")
             except Exception as e:
-                print(f"[Ollama] Error stopping service: {e}")
+                logger.error(f"Error stopping Ollama service: {e}")

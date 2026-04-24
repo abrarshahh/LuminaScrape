@@ -1,23 +1,17 @@
 from playwright.async_api import Page
-from typing import Dict
+from core.logger import get_logger
 
-async def get_accessibility_tree(page: Page) -> Dict:
+logger = get_logger(__name__)
+
+async def get_accessibility_tree(page: Page) -> dict:
     """
-    Retrieves the accessibility tree snapshot of the current page.
-    This provides a simplified view of the page structure, which is often 
-    better for LLMs than raw HTML.
-    
-    Args:
-        page: The Playwright Page object.
-        
-    Returns:
-        Dict: Status and the accessibility tree snapshot.
+    Captures the accessibility tree for visual/structural analysis.
     """
+    logger.debug("Tool: Capturing accessibility tree snapshot")
     try:
-        # Snapshot of the full page AXTree
-        ax_tree = await page.accessibility.snapshot()
-        
-        return {"status": "success", "accessibility_tree": ax_tree}
-        
+        tree = await page.accessibility.snapshot()
+        logger.debug("AXTree snapshot captured.")
+        return {"accessibility_tree": tree}
     except Exception as e:
-        return {"status": "failed", "reason": str(e)}
+        logger.error(f"Failed to capture accessibility tree: {e}")
+        return {"error": str(e)}

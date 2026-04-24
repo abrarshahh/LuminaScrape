@@ -1,45 +1,31 @@
 from playwright.async_api import Page
-from typing import Dict
+from core.logger import get_logger
 
-# Common text patterns and selectors for cookie consent buttons
-COOKIE_SELECTORS = [
-    "button:has-text('Accept')",
-    "button:has-text('Agree')",
-    "button:has-text('Allow all')",
-    "button:has-text('OK')",
-    "button:has-text('I accept')",
-    "button:has-text('Accept all cookies')",
-    "#onetrust-accept-btn-handler",
-    ".cookie-banner__accept",
-    "[aria-label='Accept cookies']",
-]
+logger = get_logger(__name__)
 
-async def accept_cookies(page: Page) -> Dict:
+async def accept_cookies(page: Page):
     """
-    Attempts to identify and click common 'Accept Cookies' buttons.
+    Attempts to find and click 'Accept' buttons on cookie consent banners.
+    """
+    logger.info("Scanning for cookie consent banners...")
+    cookie_keywords = [
+        "accept", "agree", "allow", "consent", "ok", "got it", "i understand"
+    ]
     
-    Args:
-        page: The Playwright Page object.
-        
-    Returns:
-        Dict: Status and whether a button was clicked.
-    """
     try:
-        clicked_any = False
-        for selector in COOKIE_SELECTORS:
-            locator = page.locator(selector)
-            if await locator.count() > 0:
-                # Try to click each match (sometimes there are multiple layers)
-                for i in range(await locator.count()):
-                    el = locator.nth(i)
-                    if await el.is_visible():
-                        await el.click()
-                        clicked_any = True
+        # Search for buttons with cookie keywords
+        buttons = await page.query_selector_all("button, a")
+        for button in buttons:
+            text = (await button.inner_text()).lower()
+            if any(kw in text for kw in cookie_keywords):
+                logger.info(f"Found potential cookie button: '{text}'. Clicking...")
+                await button.click()
+                await page.wait_for_load_state("networkidle")
+                logger.info("Cookie banner dismissed.")
+                return True
         
-        if clicked_any:
-            return {"status": "success", "message": "Cookie banner(s) dismissed"}
-        else:
-            return {"status": "failed", "reason": "No common cookie banners found"}
-            
+        logger.debug("No cookie banner buttons found.")
+        return False
     except Exception as e:
-        return {"status": "failed", "reason": str(e)}
+        logger.error(f"Error handling cookie banner: {e}")
+        return False

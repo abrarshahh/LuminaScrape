@@ -1,41 +1,20 @@
 import asyncio
 import random
-from urllib.parse import urlparse
-from playwright.async_api import Page, BrowserContext
+from playwright.async_api import Page
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 async def apply_stealth(page):
     try:
         import playwright_stealth
-
-        stealth_cls = getattr(playwright_stealth, "Stealth", None)
-        if stealth_cls is not None:
-            stealth_obj = stealth_cls()
-            if hasattr(stealth_obj, "apply_stealth_async"):
-                await stealth_obj.apply_stealth_async(page)
-                return
-            if hasattr(stealth_obj, "apply_stealth"):
-                res = stealth_obj.apply_stealth(page)
-                if asyncio.iscoroutine(res):
-                    await res
-                return
-
-        stealth_async = getattr(playwright_stealth, "stealth_async", None)
-        if callable(stealth_async):
-            await stealth_async(page)
+        if hasattr(playwright_stealth, 'stealth') and hasattr(playwright_stealth.stealth, 'async_api'):
+            await playwright_stealth.stealth.async_api(page)
             return
-
-        stealth_fn = getattr(playwright_stealth, "stealth", None)
-        if callable(stealth_fn):
-            res = stealth_fn(page)
-            if asyncio.iscoroutine(res):
-                await res
+        if hasattr(playwright_stealth, 'stealth_async'):
+            await playwright_stealth.stealth_async(page)
             return
-
-        from playwright_stealth.stealth import Stealth
-
-        stealth_obj = Stealth()
-        await stealth_obj.apply_stealth_async(page)
-    except Exception:
+    except:
         pass
 
 USER_AGENTS = [
@@ -46,33 +25,35 @@ USER_AGENTS = [
 
 async def visit_url(page: Page, url: str, wait_until: str = "networkidle", timeout: int = 60000) -> dict:
     """
-    Navigates the page to the specified URL using stealth techniques and custom user agents.
+    Navigates the page to the specified URL using stealth techniques.
     """
+    logger.info(f"Visiting URL: {url}")
     try:
-        # Apply stealth and custom UA
         ua = random.choice(USER_AGENTS)
         await page.set_extra_http_headers({"User-Agent": ua})
+        logger.debug(f"User-Agent set to: {ua}")
         
         await apply_stealth(page)
         
         await page.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
             window.navigator.chrome = {runtime: {}};
-            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
-            Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
         """)
 
-        # Navigate to the URL
+        logger.debug(f"Navigating with timeout={timeout}, wait_until={wait_until}")
         response = await page.goto(url, wait_until=wait_until, timeout=timeout)
         
         if not response:
+            logger.error(f"Navigation to {url} failed: No response")
             return {"status": "failed", "reason": "No response received"}
             
+        logger.info(f"Page loaded. Status: {response.status}")
+        
         if response.status >= 400:
+            logger.warning(f"HTTP Error detected: {response.status}")
             return {"status": "failed", "reason": f"HTTP {response.status}", "url": page.url}
 
-        # Small delay to allow dynamic content to settle
-        await asyncio.sleep(2)
+        await asyncio.sleep(2) # Buffer for dynamic content
         
         return {
             "status": "success",
@@ -81,4 +62,5 @@ async def visit_url(page: Page, url: str, wait_until: str = "networkidle", timeo
             "user_agent": ua
         }
     except Exception as e:
+        logger.error(f"Error during navigation to {url}: {e}")
         return {"status": "failed", "reason": str(e)}
