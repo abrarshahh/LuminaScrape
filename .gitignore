@@ -50,3 +50,9 @@ config/settings.local.yaml
 # Poetry
 .python-version
 poetry.lock
+
+
+# Other Files
+Helping_Files
+Helping_Files/
+Helping_Files/*

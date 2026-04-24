@@ -2,7 +2,41 @@ import asyncio
 import random
 from urllib.parse import urlparse
 from playwright.async_api import Page, BrowserContext
-from playwright_stealth import stealth_async
+
+async def apply_stealth(page):
+    try:
+        import playwright_stealth
+
+        stealth_cls = getattr(playwright_stealth, "Stealth", None)
+        if stealth_cls is not None:
+            stealth_obj = stealth_cls()
+            if hasattr(stealth_obj, "apply_stealth_async"):
+                await stealth_obj.apply_stealth_async(page)
+                return
+            if hasattr(stealth_obj, "apply_stealth"):
+                res = stealth_obj.apply_stealth(page)
+                if asyncio.iscoroutine(res):
+                    await res
+                return
+
+        stealth_async = getattr(playwright_stealth, "stealth_async", None)
+        if callable(stealth_async):
+            await stealth_async(page)
+            return
+
+        stealth_fn = getattr(playwright_stealth, "stealth", None)
+        if callable(stealth_fn):
+            res = stealth_fn(page)
+            if asyncio.iscoroutine(res):
+                await res
+            return
+
+        from playwright_stealth.stealth import Stealth
+
+        stealth_obj = Stealth()
+        await stealth_obj.apply_stealth_async(page)
+    except Exception:
+        pass
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -13,22 +47,14 @@ USER_AGENTS = [
 async def visit_url(page: Page, url: str, wait_until: str = "networkidle", timeout: int = 60000) -> dict:
     """
     Navigates the page to the specified URL using stealth techniques and custom user agents.
-    
-    Args:
-        page: The Playwright Page object.
-        url: The target URL.
-        wait_until: When to consider navigation finished ("load", "domcontentloaded", "networkidle", "commit").
-        timeout: Maximum navigation time in milliseconds.
-        
-    Returns:
-        dict: Status and final URL.
     """
     try:
-        # Set a random User-Agent for this session if not already set
+        # Apply stealth and custom UA
         ua = random.choice(USER_AGENTS)
         await page.set_extra_http_headers({"User-Agent": ua})
-
-        # Apply additional stealth scripts
+        
+        await apply_stealth(page)
+        
         await page.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
             window.navigator.chrome = {runtime: {}};

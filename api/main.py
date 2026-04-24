@@ -1,57 +1,43 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import Optional, List, Any
-import uuid
+import sys
 import asyncio
 
-app = FastAPI(title="LuminaScrape API", version="0.1.0")
+# CRITICAL: Windows asyncio fix must be applied BEFORE any other imports
+if sys.platform == "win32":
+    if not isinstance(asyncio.get_event_loop_policy(), asyncio.WindowsProactorEventLoopPolicy):
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-# Mock database for tasks
-tasks_db = {}
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from api.routes import scrape, config
+from core.ollama_manager import OllamaManager
 
-class ScrapeRequest(BaseModel):
-    url: str
-    prompt: str
-    schema_id: Optional[str] = None
-    max_steps: Optional[int] = 10
+# Initialize Ollama Manager
+ollama = OllamaManager()
 
-class ScrapeResponse(BaseModel):
-    task_id: str
-    status: str
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Ensure Ollama starts
+    ollama.start()
+    yield
+    # Stop Ollama on shutdown
+    ollama.stop()
 
-class TaskStatusResponse(BaseModel):
-    task_id: str
-    status: str
-    data: Optional[Any] = None
-    error: Optional[str] = None
+app = FastAPI(
+    title="LuminaScrape API",
+    description="Autonomous Multi-Agent Browser Scraping System",
+    version="0.1.0",
+    lifespan=lifespan
+)
 
-@app.post("/api/v1/scrape", response_model=ScrapeResponse)
-async def start_scrape(request: ScrapeRequest):
-    task_id = str(uuid.uuid4())
-    tasks_db[task_id] = {"status": "pending", "data": None, "error": None}
-    
-    # In a real implementation, this would trigger a background task (e.g., Celery or asyncio.create_task)
-    # asyncio.create_task(run_agent_task(task_id, request))
-    
-    return {"task_id": task_id, "status": "pending"}
+# Include routers
+app.include_router(scrape.router, prefix="/api")
+app.include_router(config.router, prefix="/api")
 
-@app.get("/api/v1/status/{task_id}", response_model=TaskStatusResponse)
-async def get_status(task_id: str):
-    if task_id not in tasks_db:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    task = tasks_db[task_id]
-    return {
-        "task_id": task_id,
-        "status": task["status"],
-        "data": task["data"],
-        "error": task["error"]
-    }
-
-@app.get("/api/v1/config")
-async def get_config():
-    return {"model": "gpt-4o-mini", "stealth_enabled": True}
+@app.get("/")
+async def root():
+    return {"message": "Welcome to LuminaScrape API", "docs": "/docs"}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # When running directly, ensure we use the correct loop
+    uvicorn.run(app, host="0.0.0.0", port=8000, loop="proactor")

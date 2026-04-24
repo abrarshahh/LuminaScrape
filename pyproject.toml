@@ -2,7 +2,7 @@
 name = "luminascrape"
 version = "0.1.0"
 description = "Autonomous, multimodal browser agent for web intelligence."
-authors = ["Antigravity <ai@deepmind.com>"]
+authors = ["Abrar Shah <abrarshah478@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.10"

@@ -12,3 +12,4 @@ crawl4ai
 httpx
 pytest
 black
+psutil

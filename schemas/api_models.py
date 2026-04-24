@@ -1,12 +1,17 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 
+class SchemaGenerationRequest(BaseModel):
+    url: str = Field(..., description="The target URL to analyze.")
+    prompt: str = Field(..., description="What data you want to extract.")
+
+class SchemaGenerationResponse(BaseModel):
+    session_id: str
+    generated_schema: Dict[str, Any]
+
 class ScrapeRequest(BaseModel):
-    url: str = Field(..., description="The target URL to start scraping from.")
-    prompt: str = Field(..., description="Natural language instructions for the agent.")
-    schema_id: Optional[str] = Field(None, description="Optional ID for a predefined extraction schema.")
-    max_steps: int = Field(10, description="Maximum number of steps the agent can take.")
-    model_overrides: Optional[Dict[str, str]] = Field(None, description="Override models for specific agents.")
+    session_id: str = Field(..., description="The session ID from the schema generation step.")
+    generated_schema: Dict[str, Any] = Field(..., description="The (possibly modified) JSON structure to use.")
 
 class ScrapeResponse(BaseModel):
     task_id: str
@@ -17,9 +22,3 @@ class TaskStatusResponse(BaseModel):
     status: str
     data: Optional[Any] = None
     error: Optional[str] = None
-    steps_taken: int = 0
-    logs: List[str] = []
-
-class ConfigUpdateRequest(BaseModel):
-    agents: Optional[Dict[str, Any]] = None
-    global_settings: Optional[Dict[str, Any]] = None

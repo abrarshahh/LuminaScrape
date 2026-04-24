@@ -9,17 +9,17 @@ agents:
   pilot:
     model: "ollama/llama3.2-vision"
     temperature: 0.0
-    description: "The Navigation Agent responsible for browser interaction."
+    description: "The Preparer Agent responsible for visual analysis and blockade busting."
   
   extractor:
-    model: "ollama/phi3.5"
+    model: "ollama/deepseek-r1:8b"
     temperature: 0.0
-    description: "The Data Extraction Agent responsible for parsing MD to JSON."
-  
+    description: "The Data Extraction Agent utilizing DeepSeek's reasoning for MD to JSON."
+
   overseer:
-    model: "ollama/llama3.1"
-    temperature: 0.2
-    description: "The Quality Control Agent responsible for validation."
+    model: "ollama/deepseek-r1:8b"
+    temperature: 0.0
+    description: "The Quality Control Agent responsible for data verification."
 
 global_settings:
   fallback_model: "gpt-4o-mini" # Used if local model fails

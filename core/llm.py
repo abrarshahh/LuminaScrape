@@ -1,6 +1,6 @@
 import os
 import yaml
-from litellm import completion
+import litellm
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -44,7 +44,7 @@ class LLMProvider:
             kwargs["response_format"] = response_format
             
         try:
-            response = completion(**kwargs)
+            response = litellm.completion(**kwargs)
             return response
         except Exception as e:
             print(f"Error calling LLM ({self.model_name}): {e}")
