@@ -1,4 +1,6 @@
 import os
+import re
+import time
 import yaml
 import litellm
 from dotenv import load_dotenv
@@ -55,6 +57,27 @@ class LLMProvider:
             
         except Exception as e:
             logger.error(f"LLM Call failed for {self.role} ({self.model_name}): {e}")
+
+            # Lightweight in-provider retry on rate limits (e.g., Groq TPM spikes).
+            msg = str(e)
+            if "RateLimitError" in msg or "rate_limit_exceeded" in msg:
+                wait_seconds = 2.0
+                # Parse "try again in Xs" when provided.
+                m = re.search(r"try again in\s+([0-9]+(?:\.[0-9]+)?)s", msg, re.IGNORECASE)
+                if m:
+                    try:
+                        wait_seconds = max(1.0, float(m.group(1)))
+                    except Exception:
+                        pass
+
+                # Cap wait to keep request latency bounded.
+                wait_seconds = min(wait_seconds, 15.0)
+                logger.warning(f"Rate limited for {self.role}; retrying same model in {wait_seconds:.2f}s...")
+                try:
+                    time.sleep(wait_seconds)
+                    return litellm.completion(**kwargs)
+                except Exception as e2:
+                    logger.error(f"Retry after rate limit failed for {self.role}: {e2}")
             
             # Fallback logic if enabled
             if os.getenv("ENABLE_FALLBACKS") == "true":

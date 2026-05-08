@@ -8,20 +8,49 @@ async def accept_cookies(page: Page):
     Attempts to find and click 'Accept' buttons on cookie consent banners.
     """
     logger.info("Scanning for cookie consent banners...")
-    cookie_keywords = [
-        "accept", "agree", "allow", "consent", "ok", "got it", "i understand"
+    accept_keywords = [
+        "accept", "agree", "allow", "consent", "ok", "got it", "i understand", "accept all", "allow all"
+    ]
+    reject_keywords = [
+        "reject", "decline", "deny", "disagree", "do not", "don't", "manage", "settings", "preferences"
     ]
     
     try:
-        # Search for buttons with cookie keywords
-        buttons = await page.query_selector_all("button, a")
-        for button in buttons:
-            text = (await button.inner_text()).lower()
-            if any(kw in text for kw in cookie_keywords):
-                logger.info(f"Found potential cookie button: '{text}'. Clicking...")
-                await button.click()
-                await page.wait_for_load_state("networkidle")
-                logger.info("Cookie banner dismissed.")
+        # Prefer role=button elements first; then fallback to links.
+        candidates = await page.query_selector_all("button, [role='button'], a")
+        for el in candidates:
+            try:
+                if not await el.is_visible():
+                    continue
+            except Exception:
+                continue
+
+            try:
+                text = ((await el.inner_text()) or "").strip().lower()
+            except Exception:
+                text = ""
+
+            if not text:
+                continue
+
+            # Avoid clicking reject/manage/settings by accident
+            if any(kw in text for kw in reject_keywords):
+                continue
+
+            if any(kw in text for kw in accept_keywords):
+                logger.info(f"Found potential cookie accept element: '{text}'. Clicking...")
+                try:
+                    await el.click(timeout=5000)
+                except Exception:
+                    try:
+                        await page.evaluate("(node) => node.click()", el)
+                    except Exception:
+                        continue
+                try:
+                    await page.wait_for_load_state("networkidle", timeout=10000)
+                except Exception:
+                    pass
+                logger.info("Cookie banner likely dismissed.")
                 return True
         
         logger.debug("No cookie banner buttons found.")

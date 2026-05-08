@@ -30,3 +30,9 @@ class AgentState(TypedDict):
 
     # Tracking Task ID for logging
     task_id: Optional[str]
+
+    # Navigation / relevance decision metadata (optional)
+    navigation: Optional[Dict[str, Any]]
+
+    # Overseer routing hint (optional)
+    next_action: Optional[str]

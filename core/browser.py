@@ -19,36 +19,29 @@ def ensure_proactor_loop():
 
 # FINAL ROBUST STEALTH LOADER
 async def apply_stealth(page):
+    logger.debug("Attempting to apply playwright-stealth...")
     try:
-        import playwright_stealth
-        logger.debug("Attempting to apply playwright-stealth...")
-        
-        if hasattr(playwright_stealth, 'stealth') and hasattr(playwright_stealth.stealth, 'async_api'):
-            await playwright_stealth.stealth.async_api(page)
-            logger.debug("Applied stealth via playwright_stealth.stealth.async_api")
-            return
+        # Most common package API: async helper function
+        from playwright_stealth import stealth_async  # type: ignore
+        await stealth_async(page)
+        logger.debug("Applied stealth via playwright_stealth.stealth_async")
+        return
+    except Exception:
+        pass
 
-        if hasattr(playwright_stealth, 'stealth_async'):
-            await playwright_stealth.stealth_async(page)
-            logger.debug("Applied stealth via playwright_stealth.stealth_async")
-            return
+    try:
+        # Some versions expose a callable `stealth` helper
+        from playwright_stealth import stealth  # type: ignore
+        res = stealth(page)
+        if asyncio.iscoroutine(res):
+            await res
+        logger.debug("Applied stealth via playwright_stealth.stealth")
+        return
+    except Exception:
+        pass
 
-        if hasattr(playwright_stealth, 'stealth') and callable(playwright_stealth.stealth):
-            res = playwright_stealth.stealth(page)
-            if asyncio.iscoroutine(res):
-                await res
-            logger.debug("Applied stealth via callable playwright_stealth.stealth")
-            return
-            
-    except Exception as e:
-        logger.warning(f"Could not apply stealth automatically: {e}")
-        try:
-            from playwright_stealth import Stealth
-            stealth_obj = Stealth()
-            await stealth_obj.apply_stealth(page)
-            logger.debug("Applied stealth via Stealth class fallback")
-        except Exception as e2:
-            logger.error(f"Total failure applying stealth: {e2}")
+    # Stealth is optional; log debug instead of noisy warning/error.
+    logger.debug("playwright-stealth API not available for this package version; continuing without stealth.")
 
 class BrowserManager:
     def __init__(self, headless=True, proxy=None):

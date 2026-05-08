@@ -53,6 +53,7 @@ poetry.lock
 
 
 # Other Files
+PROJECT_CONTEXT.md
 Helping_Files
 Helping_Files/
 Helping_Files/*

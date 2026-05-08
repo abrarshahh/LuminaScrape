@@ -12,15 +12,30 @@ agents:
     description: "The Preparer Agent responsible for visual analysis and blockade busting."
   
   extractor:
-    model: "ollama/deepseek-r1:8b"
+    model: "groq/llama-3.3-70b-versatile"
     temperature: 0.0
-    description: "The Data Extraction Agent utilizing DeepSeek's reasoning for MD to JSON."
+    description: "Primary heavy extraction model for robust structured output."
 
   overseer:
-    model: "ollama/deepseek-r1:8b"
+    model: "groq/llama-3.1-8b-instant"
     temperature: 0.0
-    description: "The Quality Control Agent responsible for data verification."
+    description: "Quality control and routing model (retry_extract vs navigate)."
+  
+  schema_generator:
+    model: "groq/llama-3.3-70b-versatile"
+    temperature: 0.0
+    description: "Generates a consistent JSON output schema from a user prompt."
+  
+  navigator:
+    model: "groq/llama-3.1-8b-instant"
+    temperature: 0.0
+    description: "Decides whether to extract, scroll, or navigate to reach the correct page."
+
+  multipage_selector:
+    model: "groq/llama-3.1-8b-instant"
+    temperature: 0.0
+    description: "Selects best candidate detail URLs for multi-page extraction."
 
 global_settings:
-  fallback_model: "gpt-4o-mini" # Used if local model fails
-  enable_fallbacks: false
+  fallback_model: "ollama/deepseek-r1:8b" # Safe local fallback for GPU-limited machines
+  enable_fallbacks: true

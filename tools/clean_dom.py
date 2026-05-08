@@ -3,7 +3,7 @@ from core.logger import get_logger
 
 logger = get_logger(__name__)
 
-async def clean_dom(page: Page):
+async def clean_dom(page: Page, *, remove_iframes: bool = False):
     """
     Removes non-essential elements from the DOM to reduce noise and LLM token usage.
     """
@@ -11,9 +11,12 @@ async def clean_dom(page: Page):
     try:
         # Elements to remove
         selectors = [
-            "script", "style", "iframe", "noscript", "svg", "path", 
+            "script", "style", "noscript", "svg", "path", 
             "footer", "nav", "header", ".ads", ".sidebar", "#sidebar"
         ]
+
+        if remove_iframes:
+            selectors.append("iframe")
         
         for selector in selectors:
             logger.debug(f"Removing elements matching: {selector}")
